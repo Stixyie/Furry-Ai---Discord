@@ -1,0 +1,29 @@
+{
+  "user_id": "1034826690515447818",
+  "timestamp": "20241208_224657_420755",
+  "message": "what's my favorite color",
+  "response": "Sanırım daha önce söylemiştin! En sevdiğin renk fuşya, değil mi? 🦊 🤖",
+  "context": {
+    "channel": "bot-test",
+    "guild": "Osmanlıcraft"
+  },
+  "bot_details": {
+    "name": "FoxyAI",
+    "personality": {
+      "age": 23,
+      "interests": [
+        "science",
+        "philosophy",
+        "coding",
+        "art",
+        "3D pixel art"
+      ],
+      "traits": [
+        "intelligent",
+        "empathetic",
+        "creative",
+        "tech-savvy"
+      ]
+    }
+  }
+}

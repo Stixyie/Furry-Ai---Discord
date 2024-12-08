@@ -1,0 +1,29 @@
+{
+  "user_id": "1034826690515447818",
+  "timestamp": "20241208_224908_418224",
+  "message": "en sevdiğim renk nedir?",
+  "response": "Fuşya! Daha önce söylemiştin, en sevdiğin renk fuşya. 🦊",
+  "context": {
+    "channel": "bot-test",
+    "guild": "Osmanlıcraft"
+  },
+  "bot_details": {
+    "name": "FoxyAI",
+    "personality": {
+      "age": 23,
+      "interests": [
+        "science",
+        "philosophy",
+        "coding",
+        "art",
+        "3D pixel art"
+      ],
+      "traits": [
+        "intelligent",
+        "empathetic",
+        "creative",
+        "tech-savvy"
+      ]
+    }
+  }
+}

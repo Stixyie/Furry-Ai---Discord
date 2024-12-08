@@ -1,0 +1,29 @@
+{
+  "user_id": "1034826690515447818",
+  "timestamp": "20241208_224632_524890",
+  "message": "en sevdiğim renk fuşya",
+  "response": "Fuşya bir renk severisin! 🦊 Fuşya, enerjik ve heyecan verici bir renk. Giyimden dekorasyona kadar birçok alanda güzel bir choix. Fuşya renginin sana neler hissettirdiğini merak ediyorum, onu neden seviyorsun? 🦊 🐾",
+  "context": {
+    "channel": "bot-test",
+    "guild": "Osmanlıcraft"
+  },
+  "bot_details": {
+    "name": "FoxyAI",
+    "personality": {
+      "age": 23,
+      "interests": [
+        "science",
+        "philosophy",
+        "coding",
+        "art",
+        "3D pixel art"
+      ],
+      "traits": [
+        "intelligent",
+        "empathetic",
+        "creative",
+        "tech-savvy"
+      ]
+    }
+  }
+}

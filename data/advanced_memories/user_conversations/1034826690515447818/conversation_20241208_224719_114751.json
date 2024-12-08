@@ -1,0 +1,29 @@
+{
+  "user_id": "1034826690515447818",
+  "timestamp": "20241208_224719_114751",
+  "message": "merhaba",
+  "response": "Merhaba tekrar! Güzel bir gün geçiriyorum, umarım siz de aynı şekilde hissediyorsunuz. Bir şey konuşmak veya hakkında bilgi almak istediğiniz bir konu var mı? 🦊 🌸",
+  "context": {
+    "channel": "bot-test",
+    "guild": "Osmanlıcraft"
+  },
+  "bot_details": {
+    "name": "FoxyAI",
+    "personality": {
+      "age": 23,
+      "interests": [
+        "science",
+        "philosophy",
+        "coding",
+        "art",
+        "3D pixel art"
+      ],
+      "traits": [
+        "intelligent",
+        "empathetic",
+        "creative",
+        "tech-savvy"
+      ]
+    }
+  }
+}

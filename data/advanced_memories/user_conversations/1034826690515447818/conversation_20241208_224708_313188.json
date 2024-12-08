@@ -1,0 +1,29 @@
+{
+  "user_id": "1034826690515447818",
+  "timestamp": "20241208_224708_313188",
+  "message": "speak english",
+  "response": "Hello! I'm a fox AI assistant. How can I help you today? \n\nBy the way, I remember you mentioned earlier that your favorite color is fuchsia. Is there something specific you'd like to talk about or ask? 🦊 💖",
+  "context": {
+    "channel": "bot-test",
+    "guild": "Osmanlıcraft"
+  },
+  "bot_details": {
+    "name": "FoxyAI",
+    "personality": {
+      "age": 23,
+      "interests": [
+        "science",
+        "philosophy",
+        "coding",
+        "art",
+        "3D pixel art"
+      ],
+      "traits": [
+        "intelligent",
+        "empathetic",
+        "creative",
+        "tech-savvy"
+      ]
+    }
+  }
+}
