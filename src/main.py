@@ -19,6 +19,7 @@ import re
 import urllib.parse
 import time
 import ctypes
+from dotenv import load_dotenv
 
 # Configure logging early
 logging.basicConfig(level=logging.INFO)
@@ -171,11 +172,8 @@ except ImportError:
     DDGS = None
     logger.warning("DuckDuckGo search module not available. Using alternative search methods.")
 
-from proxy_manager import proxy_manager
-
-import discord
 from discord.ext import commands
-from dotenv import load_dotenv
+import discord
 
 # Groq-specific imports
 from groq import Groq
@@ -190,109 +188,266 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Global DNS Server List from various countries and providers
+GLOBAL_DNS_SERVERS = [
+    # United States
+    "8.8.8.8",      # Google
+    "1.1.1.1",      # Cloudflare
+    "9.9.9.9",      # Quad9
+    "64.6.64.6",    # Verisign
+    "208.67.222.222", # OpenDNS
+    
+    # Europe
+    "77.88.8.8",    # Yandex (Russia)
+    "94.140.14.14", # AdGuard (Sweden)
+    "185.228.168.9", # CleanBrowsing (Netherlands)
+    "176.103.130.130", # AdGuard (Germany)
+    "195.46.39.39", # SafeDNS (Czech Republic)
+    
+    # Asia
+    "114.114.114.114", # Baidu (China)
+    "223.5.5.5",    # AliDNS (China)
+    "168.126.63.1", # Korean Telecom
+    "202.46.1.1",   # JPNIC (Japan)
+    "202.181.224.2", # NIXI (India)
+    
+    # South America
+    "200.221.11.101", # Brazil
+    "200.95.144.1",  # Argentina
+    "200.150.68.10", # Chile
+    
+    # Africa
+    "196.10.1.1",   # Egypt
+    "197.234.240.1", # South Africa
+    "105.235.252.1", # Nigeria
+    
+    # Oceania
+    "203.26.75.130", # Australia
+    "202.8.73.206", # New Zealand
+    
+    # Middle East
+    "78.157.42.100", # Iran
+    "185.51.200.2",  # UAE
+    "212.85.112.44", # Saudi Arabia
+    
+    # Additional Global Providers
+    "84.200.69.80",  # DNS.WATCH
+    "91.239.100.100", # censurfridns.org
+    "89.233.43.71",  # Uncensored DNS
+    "74.82.42.42"    # Hurricane Electric
+]
+
+def change_dns_dynamically(force_admin=False):
+    """
+    Dynamically change DNS settings with enhanced error handling
+    
+    :param force_admin: Force administrative privileges
+    :return: Boolean indicating DNS change success
+    """
+    try:
+        import ctypes
+        import random
+        import subprocess
+        import platform
+        import sys
+        import io
+        
+        # Select a random DNS server
+        new_dns = random.choice(GLOBAL_DNS_SERVERS)
+        
+        # Detect operating system
+        os_type = platform.system().lower()
+        
+        def run_with_admin_check(commands, admin_required=False):
+            """
+            Run commands with or without admin privileges
+            
+            :param commands: List of commands to run
+            :param admin_required: Whether admin rights are strictly required
+            :return: Command execution result
+            """
+            try:
+                # Check for admin rights on Windows
+                if os_type == 'windows':
+                    if force_admin or admin_required:
+                        if not ctypes.windll.shell32.IsUserAnAdmin():
+                            # Attempt to re-launch with admin rights
+                            ctypes.windll.shell32.ShellExecuteW(
+                                None, "runas", sys.executable, " ".join(sys.argv), None, 1
+                            )
+                            return False
+                
+                # Execute commands with explicit encoding handling
+                for cmd in commands:
+                    result = subprocess.run(
+                        cmd, 
+                        capture_output=True, 
+                        text=True, 
+                        encoding='utf-8',  # Explicit UTF-8 encoding
+                        errors='replace',  # Replace undecodable bytes
+                        shell=True
+                    )
+                    
+                    # Log command output
+                    if result.stdout:
+                        logger.info(f"Command stdout: {result.stdout}")
+                    if result.stderr:
+                        logger.warning(f"Command stderr: {result.stderr}")
+                
+                return True
+            
+            except Exception as e:
+                logger.error(f"Command execution error: {e}")
+                return False
+        
+        # OS-specific DNS change methods
+        if os_type == 'windows':
+            # Windows DNS change
+            commands = [
+                f'netsh interface ip set dns "Ethernet" static {new_dns}',
+                f'netsh interface ip add dns "Ethernet" {new_dns} index=2'
+            ]
+            success = run_with_admin_check(commands, admin_required=force_admin)
+        
+        elif os_type == 'linux':
+            # Linux DNS change
+            commands = [
+                f'echo "nameserver {new_dns}" | sudo tee /etc/resolv.conf',
+                f'sudo sed -i "1i nameserver {new_dns}" /etc/resolv.conf'
+            ]
+            success = run_with_admin_check(commands)
+        
+        elif os_type == 'darwin':
+            # macOS DNS change
+            commands = [
+                f'sudo networksetup -setdnsservers Wi-Fi {new_dns}'
+            ]
+            success = run_with_admin_check(commands)
+        
+        else:
+            logger.warning(f"Unsupported OS for DNS change: {os_type}")
+            return False
+        
+        # Log result
+        if success:
+            logger.info(f"🌐 DNS successfully changed to {new_dns} on {os_type}")
+        else:
+            logger.warning(f"❌ DNS change to {new_dns} failed on {os_type}")
+        
+        return success
+    
+    except Exception as e:
+        logger.error(f"Unexpected DNS change error: {e}")
+        return False
+
 # Kullanıcı bellek yönetimi
 class UserMemoryManager:
     def __init__(self, base_dir='Furry-AI-Bot/data/advanced_memories'):
         """
-        Gelişmiş kullanıcı bellek yönetimi
+        Initialize user memory management with advanced features
         
-        Args:
-            base_dir (str): Bellek dosyalarının kaydedileceği temel dizin
+        :param base_dir: Base directory for storing user memories
         """
-        self.base_dir = base_dir
-        self.memories_dir = {
-            'semantic': os.path.join(base_dir, 'semantic_memories'),
-            'temporal': os.path.join(base_dir, 'temporal_memories'),
-            'contextual': os.path.join(base_dir, 'contextual_memories'),
-            'user_conversations': os.path.join(base_dir, 'user_conversations')
-        }
-        
-        # Dizinleri oluştur
-        for path in self.memories_dir.values():
-            os.makedirs(path, exist_ok=True)
+        self.base_dir = os.path.abspath(base_dir)
+        os.makedirs(self.base_dir, exist_ok=True)
     
-    def _ensure_user_dir(self, user_id):
-        """Kullanıcıya özel dizini oluştur"""
-        user_dir = os.path.join(self.memories_dir['user_conversations'], str(user_id))
-        os.makedirs(user_dir, exist_ok=True)
-        return user_dir
+    def _get_user_memory_path(self, user_id):
+        """
+        Generate a unique memory path for each user
+        
+        :param user_id: Unique identifier for the user
+        :return: Path to user's memory directory
+        """
+        user_memory_dir = os.path.join(self.base_dir, str(user_id))
+        os.makedirs(user_memory_dir, exist_ok=True)
+        return user_memory_dir
     
-    def save_user_conversation(self, user_id, message, response, context=None):
+    def save_conversation_memory(self, user_id, conversation_context, max_memory_files=50):
         """
-        Kullanıcı konuşmasını kaydet
+        Save conversation context with advanced memory management
         
-        :param user_id: Kullanıcı ID'si
-        :param message: Kullanıcı mesajı
-        :param response: Bot yanıtı
-        :param context: İsteğe bağlı ek bağlam
+        :param user_id: User's unique identifier
+        :param conversation_context: Dictionary containing conversation details
+        :param max_memory_files: Maximum number of memory files to keep per user
         """
-        user_dir = self._ensure_user_dir(user_id)
+        try:
+            user_memory_dir = self._get_user_memory_path(user_id)
+            
+            # Generate unique filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            memory_file = os.path.join(user_memory_dir, f"memory_{timestamp}.json")
+            
+            # Save conversation context
+            with open(memory_file, 'w', encoding='utf-8') as f:
+                json.dump(conversation_context, f, ensure_ascii=False, indent=2)
+            
+            # Manage memory file count
+            memory_files = sorted(
+                [f for f in os.listdir(user_memory_dir) if f.startswith('memory_')],
+                reverse=True
+            )
+            
+            # Remove excess memory files
+            for old_file in memory_files[max_memory_files:]:
+                os.remove(os.path.join(user_memory_dir, old_file))
+            
+            logger.info(f"💾 Memory saved for User {user_id}: {memory_file}")
         
-        # Benzersiz dosya adı oluştur
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        filename = f"conversation_{timestamp}.json"
-        filepath = os.path.join(user_dir, filename)
-        
-        # Konuşma verilerini kaydet
-        conversation_data = {
-            'timestamp': timestamp,
-            'user_id': user_id,
-            'message': message,
-            'response': response,
-            'context': context
-        }
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(conversation_data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"❌ Memory save error for User {user_id}: {e}")
     
-    def get_user_conversation_history(self, user_id, max_conversations=10):
+    def retrieve_user_memories(self, user_id, recent_count=10):
         """
-        Kullanıcının konuşma geçmişini al
+        Retrieve recent user memories for context generation
         
-        :param user_id: Kullanıcı ID'si
-        :param max_conversations: En fazla alınacak konuşma sayısı
-        :return: Konuşma geçmişi listesi
+        :param user_id: User's unique identifier
+        :param recent_count: Number of recent memory files to retrieve
+        :return: List of memory contexts
         """
-        user_dir = os.path.join(self.memories_dir['user_conversations'], str(user_id))
+        try:
+            user_memory_dir = self._get_user_memory_path(user_id)
+            
+            # Get sorted memory files
+            memory_files = sorted(
+                [f for f in os.listdir(user_memory_dir) if f.startswith('memory_')],
+                reverse=True
+            )
+            
+            # Retrieve recent memory files
+            memories = []
+            for file in memory_files[:recent_count]:
+                file_path = os.path.join(user_memory_dir, file)
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        memory = json.load(f)
+                        memories.append(memory)
+                except Exception as e:
+                    logger.error(f"❌ Memory read error: {file} - {e}")
+            
+            return memories
         
-        if not os.path.exists(user_dir):
+        except Exception as e:
+            logger.error(f"❌ Memory retrieval error for User {user_id}: {e}")
             return []
-        
-        # Tüm konuşma dosyalarını al ve tarihe göre sırala
-        conversation_files = sorted(
-            [f for f in os.listdir(user_dir) if f.startswith('conversation_')],
-            reverse=True
-        )
-        
-        # Son max_conversations kadar dosyayı oku
-        conversation_history = []
-        for file in conversation_files[:max_conversations]:
-            file_path = os.path.join(user_dir, file)
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    conversation_data = json.load(f)
-                    conversation_history.append(conversation_data)
-            except Exception as e:
-                logger.error(f"Konuşma dosyası okunamadı: {file_path}, Hata: {e}")
-        
-        return conversation_history
     
-    def generate_user_memory_prompt(self, user_id):
+    def generate_memory_prompt(self, user_memories):
         """
-        Kullanıcıya özel bellek için bir prompt oluştur
+        Generate a comprehensive memory prompt for AI context
         
-        :param user_id: Kullanıcı ID'si
-        :return: Kullanıcı bellek prompt'u
+        :param user_memories: List of user memory contexts
+        :return: Formatted memory prompt
         """
-        conversation_history = self.get_user_conversation_history(user_id)
+        if not user_memories:
+            return "No previous conversation context available."
         
-        if not conversation_history:
-            return "Henüz bu kullanıcıyla herhangi bir konuşma geçmişi yok."
-        
-        memory_prompt = "Kullanıcı Konuşma Geçmişi:\n"
-        for conv in conversation_history:
-            memory_prompt += f"- Kullanıcı: {conv['message']}\n"
-            memory_prompt += f"- Bot: {conv['response']}\n\n"
+        memory_prompt = "Previous Conversation Memories:\n"
+        for idx, memory in enumerate(user_memories, 1):
+            memory_prompt += f"\n--- Memory {idx} ---\n"
+            
+            # Extract and format key memory components
+            for key, value in memory.items():
+                if value:  # Only include non-empty values
+                    memory_prompt += f"{key.capitalize()}: {value}\n"
         
         return memory_prompt
 
@@ -490,7 +645,7 @@ class UltraNovativBot(commands.Bot):
                 return False
             
             # Attempt network rotation
-            return proxy_manager.rotate_network()
+            return False
         
         except Exception as e:
             logger.error(f"Network rotation error: {e}")
@@ -498,16 +653,35 @@ class UltraNovativBot(commands.Bot):
 
     async def perform_web_search(self, query, max_retries=10):
         """
-        Perform web search with network rotation and extensive retry mechanism
+        Perform web search with DNS rotation and extensive retry mechanism
         
         :param query: Search query
         :param max_retries: Maximum number of retry attempts
         :return: Search results or None
         """
+        # Track used DNS servers to avoid repeats
+        used_dns_servers = set()
+        
         for attempt in range(max_retries):
             try:
-                # Attempt network rotation before each search
-                network_rotated = await self.rotate_network_with_admin_check()
+                # Select a DNS server not used in previous attempts
+                available_dns = [dns for dns in GLOBAL_DNS_SERVERS if dns not in used_dns_servers]
+                
+                # If all DNS servers have been used, reset the tracking
+                if not available_dns:
+                    used_dns_servers.clear()
+                    available_dns = GLOBAL_DNS_SERVERS
+                
+                # Choose a random DNS from available options
+                new_dns = random.choice(available_dns)
+                used_dns_servers.add(new_dns)
+                
+                # Attempt DNS rotation before each search
+                dns_rotated = change_dns_dynamically(force_admin=False)
+                if dns_rotated:
+                    logger.info(f"🌐 DNS rotated to {new_dns} for search attempt {attempt + 1}")
+                else:
+                    logger.warning(f"❌ DNS rotation failed for attempt {attempt + 1}")
                 
                 # Log the current attempt
                 logger.info(f"🔍 Web Search Attempt {attempt + 1}/{max_retries}: {query}")
@@ -528,12 +702,16 @@ class UltraNovativBot(commands.Bot):
             
             except Exception as e:
                 # Detailed error logging
+                error_msg = str(e).lower()
                 logger.error(f"❌ Web search error on attempt {attempt + 1}: {e}")
                 
-                # Additional error context
-                if 'proxy' in str(e).lower():
-                    logger.warning("🌐 Potential proxy issue detected. Attempting network rotation.")
-                    await self.rotate_network_with_admin_check()
+                # Special handling for rate limit
+                if "ratelimit" in error_msg or "429" in error_msg or "202" in error_msg:
+                    logger.warning(f"🚫 Rate limit detected on DNS {new_dns}. Attempting to rotate.")
+                    
+                    # Exponential backoff with additional delay for rate limits
+                    await asyncio.sleep(min(5 ** attempt + random.random(), 120))
+                    continue
                 
                 # Exponential backoff with jitter
                 await asyncio.sleep(min(2 ** attempt + random.random(), 60))
@@ -578,8 +756,7 @@ class UltraNovativBot(commands.Bot):
         for attempt in range(max_attempts):
             try:
                 # Get a fresh proxy for each attempt
-                proxy = proxy_manager.get_proxy()
-                proxies = {'http://': proxy, 'https://': proxy} if proxy else None
+                proxy = None
                 
                 logger.info(f"Web Search Attempt {attempt + 1}: Query='{query}', Proxy={proxy}")
                 
@@ -590,8 +767,6 @@ class UltraNovativBot(commands.Bot):
                 # Check if results are meaningful
                 if not results:
                     logger.warning(f"No results for query: {query}. Retrying...")
-                    if proxy:
-                        proxy_manager.release_proxy(proxy, is_bad=True)
                     await asyncio.sleep(2 ** attempt)  # Exponential backoff
                     continue
                 
@@ -603,10 +778,6 @@ class UltraNovativBot(commands.Bot):
             except Exception as e:
                 error_msg = str(e).lower()
                 logger.error(f"DuckDuckGo search error (Attempt {attempt + 1}): {e}")
-                
-                # Release problematic proxy
-                if proxy:
-                    proxy_manager.release_proxy(proxy, is_bad=True)
                 
                 # Specific error handling
                 if "ratelimit" in error_msg or "429" in error_msg:
@@ -641,13 +812,12 @@ class UltraNovativBot(commands.Bot):
             }
             
             # Use proxy if available
-            proxy = proxy_manager.get_proxy()
-            proxies = {'http://': proxy, 'https://': proxy} if proxy else None
+            proxy = None
             
             response = requests.get(
                 search_url, 
                 headers=headers, 
-                proxies=proxies, 
+                proxies={'http': proxy, 'https': proxy} if proxy else None,
                 timeout=15
             )
             
@@ -682,10 +852,6 @@ class UltraNovativBot(commands.Bot):
         
         except requests.exceptions.RequestException as req_error:
             logger.error(f"Fallback search request error: {req_error}")
-            
-            # Release problematic proxy
-            if proxy:
-                proxy_manager.release_proxy(proxy, is_bad=True)
             
             return [{
                 'title': f'Search error for {query}',
@@ -771,7 +937,7 @@ class UltraNovativBot(commands.Bot):
             ]
             
             # Add user-specific memory prompt
-            user_memory_prompt = self.user_memory_manager.generate_user_memory_prompt(user_id)
+            user_memory_prompt = self.user_memory_manager.generate_memory_prompt(self.user_memory_manager.retrieve_user_memories(user_id))
             context_messages.append({
                 "role": "system", 
                 "content": f"Kullanıcının Geçmiş Hafızası:\n{user_memory_prompt}"
@@ -870,10 +1036,14 @@ class UltraNovativBot(commands.Bot):
                 response = await self.process_message(user_message, message.author.id, message.author.name)
                 
                 # Kullanıcı mesajını ve yanıtı kaydet
-                self.user_memory_manager.save_user_conversation(
+                self.user_memory_manager.save_conversation_memory(
                     message.author.id, 
-                    user_message, 
-                    response
+                    {
+                        'user_id': message.author.id,
+                        'username': message.author.name,
+                        'message': user_message,
+                        'response': response
+                    }
                 )
                 
                 # Yanıtı gönder
@@ -915,6 +1085,12 @@ def main():
 
     # Bot oluştur
     bot = UltraNovativBot(intents=intents)
+
+    # DNS değişim mekanizması
+    if change_dns_dynamically():
+        logger.info("DNS değişim başarılı!")
+    else:
+        logger.warning("DNS değişim başarısız!")
 
     # Bot'u çalıştır
     bot.run(os.getenv('DISCORD_BOT_TOKEN'))
